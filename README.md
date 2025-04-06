@@ -33,11 +33,34 @@ sections to not use default app groups
 
 ## Run on Local
 
+### iOS or Android App
+
 ```
 yarn android
 # or
 yarn ios
 ```
+
+### iOS Widget or WatchOS App + Complication
+
+If you haven't yet, run `prebuild`
+
+```bash
+npx expo prebuild
+```
+
+Then, if necessary, install pods
+
+```bash
+cd ios && pod install && cd ..
+```
+
+Then you can open the workspace in Xcode and run the app or widget target.
+
+```bash
+open ios/EASWidgetandWatchOSExample.xcworkspace
+```
+
 ## TODO
 
 - [ ] Get shared files working between targets, whether just copying or actually copying once and sharing the file between targets
