@@ -1,50 +1,44 @@
-# Welcome to your Expo app 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An example of adding a Widget, Watch App, and Watch App Complication in Expo's Managed Workflow (EAS).
 
-## Get started
+| ios | watchos app | watchos complication|
+|:-----------:|:------------:|:------------:|
+|<img width="200" src="./images/homescreen.png" />|<img width="200" src="./images/watchapp.png" />|<img width="200" src="./images/complication.png" />|
 
-1. Install dependencies
+## Folders
 
-   ```bash
-   npm install
-   ```
+- plugin: Config Plugins
+- widget: Template files for widget
+- watch: Template files for watch app
+- complication: Template files for watch app complication
 
-2. Start the app
+## Set up
 
-   ```bash
-    npx expo start
-   ```
+### Install
 
-In the output, you'll find options to open the app in a
+`yarn install`
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Edit app.json
 
-## Get a fresh project
+Edit following fields.
 
-When you're ready, run:
+- `android.package`
+- `ios.bundleIdentifier`
+- `extra.eas.build.experimental.ios.appExtensions`
+- `<APPLE_DEV_TEAM_ID>` in `plugins`
 
-```bash
-npm run reset-project
+Update the entitlements file to match your app group you have enabled for your team. Otherwise disbale the entitlements 
+sections to not use default app groups
+
+## Run on Local
+
 ```
+yarn android
+# or
+yarn ios
+```
+## TODO
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [ ] Get shared files working between targets, whether just copying or actually copying once and sharing the file between targets
+- [ ] Get Swift Package Manager working in extensions
