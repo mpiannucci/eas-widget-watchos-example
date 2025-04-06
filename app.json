@@ -1,41 +1,85 @@
 {
   "expo": {
-    "name": "expo-apple-watch-widget-example",
-    "slug": "expo-apple-watch-widget-example",
+    "name": "EAS Widget and WatchOS Example",
+    "slug": "eas-widget-watchos-example",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.mpiannucci.example1",
+      "supportsTablet": true, 
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.mpiannucci.BuoyFinder"]
+      }
     },
     "android": {
+      "package": "com.mpiannucci.example1",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router",
       [
-        "expo-splash-screen",
+        "expo-build-properties",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "android": {
+            "kotlinVersion": "1.6.10"
+          }
+        }
+      ],
+      [
+        "./app.plugin",
+        {
+          "devTeamId": "39L46PD99U", 
+          "targets": [
+            {
+              "type": "widget",
+              "name": "widget",
+              "bundleId": "com.mpiannucci.example1.widget",
+              "sourceDir": "widget", 
+              "sourceFiles": ["widget.swift"],
+              "entitlementsFile": "widget.entitlements",
+              "frameworks": ["WidgetKit.framework"]
+            },
+            {
+              "type": "watch",
+              "name": "watch",
+              "bundleId": "com.mpiannucci.example1.watch",
+              "displayName": "EAS WATCH",
+              "companionAppBundleId": "com.mpiannucci.example1",
+              "sourceDir": "watch", 
+              "sourceFiles": ["watchApp.swift"],
+              "entitlementsFile": "watch.entitlements",
+              "frameworks": ["SwiftUI.framework"]
+            },
+            {
+              "type": "complication", 
+              "name": "complication", 
+              "bundleId": "com.mpiannucci.example1.watch.compl",
+              "sourceDir": "complication",
+              "sourceFiles": ["complication.swift"],
+              "entitlementsFile": "complication.entitlements",
+              "frameworks": ["SwiftUI.framework", "WidgetKit.framework"]
+            }
+          ]
         }
       ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    ]
   }
 }
