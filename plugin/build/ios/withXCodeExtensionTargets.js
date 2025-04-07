@@ -54,12 +54,11 @@ const WIDGET_BUILD_CONFIGURATION_SETTINGS = {
 };
 const withXCodeExtensionTargets = (config, options) => {
     return (0, config_plugins_1.withXcodeProject)(config, async (newConfig) => {
-        var _a;
         try {
             const projectName = newConfig.modRequest.projectName;
             const projectRoot = newConfig.modRequest.projectRoot;
             const platformProjectPath = newConfig.modRequest.platformProjectRoot;
-            const bundleId = ((_a = config.ios) === null || _a === void 0 ? void 0 : _a.bundleIdentifier) || "";
+            const bundleId = config.ios?.bundleIdentifier || "";
             const projectPath = `${newConfig.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
             await updateXCodeProj(projectRoot, projectPath, platformProjectPath, options.devTeamId, options.targets);
             return newConfig;
@@ -79,11 +78,18 @@ async function updateXCodeProj(projectRoot, projectPath, platformProjectPath, de
     });
 }
 async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target) {
-    var _a;
     const targetSourceDirPath = path_1.default.join(projectRoot, target.sourceDir);
     const targetFilesDir = path_1.default.join(platformProjectPath, target.name);
     fs_extra_1.default.copySync(targetSourceDirPath, targetFilesDir);
-    const targetFiles = ["Assets.xcassets", "Info.plist", ...target.sourceFiles];
+    if (target.commonSourceDir) {
+        const commonSourceDirPath = path_1.default.join(projectRoot, target.commonSourceDir);
+        target.commonSourceFiles?.forEach(file => {
+            const filePath = path_1.default.join(commonSourceDirPath, file);
+            fs_extra_1.default.copySync(filePath, `${targetFilesDir}/${file}`);
+        });
+    }
+    const targetSourceFiles = [...target.sourceFiles, ...(target.commonSourceFiles || [])];
+    const targetFiles = ["Assets.xcassets", "Info.plist", ...targetSourceFiles];
     if (target.entitlementsFile) {
         targetFiles.push(target.entitlementsFile);
     }
@@ -121,7 +127,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     ;
     const newTarget = xcodeProject.addTarget(target.name, targetType, target.name, target.bundleId);
     // add build phase
-    xcodeProject.addBuildPhase(target.sourceFiles, "PBXSourcesBuildPhase", "Sources", newTarget.uuid, targetType, target.name);
+    xcodeProject.addBuildPhase(targetSourceFiles, "PBXSourcesBuildPhase", "Sources", newTarget.uuid, targetType, target.name);
     xcodeProject.addBuildPhase(target.frameworks, "PBXFrameworksBuildPhase", "Frameworks", newTarget.uuid, targetType, target.name);
     xcodeProject.addBuildPhase([target.name + "/Assets.xcassets"], "PBXResourcesBuildPhase", "Resources", newTarget.uuid, targetType, target.name);
     // We need to embed the watch app into the main app, this is done automagically for 
@@ -189,7 +195,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
                     ...configurations[key].buildSettings,
                     ...buildSettings,
                     DEVELOPMENT_TEAM: developmentTeamId,
-                    PRODUCT_NAME: `"${(_a = target.displayName) !== null && _a !== void 0 ? _a : target.name}"`,
+                    PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
                     PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
                     INFOPLIST_FILE: `${target.name}/Info.plist`,
                     INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',

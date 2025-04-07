@@ -5,11 +5,16 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
+    "prebuild": "npx expo prebuild",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "plugin:build": "tsc -p ./plugin/tsconfig.json",
+    "plugin:watch": "expo-module build plugin",
+    "plugin:test": "expo-module test plugin",
+    "postinstall": "yarn plugin:build"
   },
   "jest": {
     "preset": "jest-expo"

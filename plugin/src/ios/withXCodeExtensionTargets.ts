@@ -104,7 +104,23 @@ async function addXcodeTarget(
     )
     fs.copySync(targetSourceDirPath, targetFilesDir)
 
-    const targetFiles = ["Assets.xcassets", "Info.plist", ...target.sourceFiles];
+    if (target.commonSourceDir) {
+        const commonSourceDirPath = path.join(
+            projectRoot,
+            target.commonSourceDir,
+        )
+        
+        target.commonSourceFiles?.forEach(file => {
+            const filePath = path.join(
+                commonSourceDirPath,
+                file
+            )
+            fs.copySync(filePath, `${targetFilesDir}/${file}`)
+        })
+    }
+
+    const targetSourceFiles = [...target.sourceFiles, ...(target.commonSourceFiles || [])];
+    const targetFiles = ["Assets.xcassets", "Info.plist", ...targetSourceFiles];
     if (target.entitlementsFile) {
         targetFiles.push(target.entitlementsFile)
     }
@@ -157,7 +173,7 @@ async function addXcodeTarget(
 
     // add build phase
     xcodeProject.addBuildPhase(
-        target.sourceFiles,
+        targetSourceFiles,
         "PBXSourcesBuildPhase",
         "Sources",
         newTarget.uuid,

@@ -10,6 +10,8 @@ type IosExtensionTarget = {
   displayName?: string,
   sourceDir: string,
   sourceFiles: string[],
+  commonSourceDir?: string,
+  commonSourceFiles?: string[],
   entitlementsFile?: string,
   frameworks: string[],
 };

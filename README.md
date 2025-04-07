@@ -46,7 +46,7 @@ yarn ios
 If you haven't yet, run `prebuild`
 
 ```bash
-npx expo prebuild
+yarn prebuild
 ```
 
 Then, if necessary, install pods

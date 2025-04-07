@@ -52,10 +52,12 @@
               "type": "widget",
               "name": "widget",
               "bundleId": "com.mpiannucci.example1.widget",
-              "sourceDir": "widget", 
+              "sourceDir": "extensions/widget",
               "sourceFiles": ["widget.swift"],
               "entitlementsFile": "widget.entitlements",
-              "frameworks": ["WidgetKit.framework"]
+              "frameworks": ["WidgetKit.framework"],
+              "commonSourceDir": "extensions/common",
+              "commonSourceFiles": ["shared.swift"]
             },
             {
               "type": "watch",
@@ -63,19 +65,23 @@
               "bundleId": "com.mpiannucci.example1.watch",
               "displayName": "EAS WATCH",
               "companionAppBundleId": "com.mpiannucci.example1",
-              "sourceDir": "watch", 
+              "sourceDir": "extensions/watch",
               "sourceFiles": ["watchApp.swift"],
               "entitlementsFile": "watch.entitlements",
-              "frameworks": ["SwiftUI.framework"]
+              "frameworks": ["SwiftUI.framework"],
+              "commonSourceDir": "extensions/common",
+              "commonSourceFiles": ["shared.swift"]
             },
             {
               "type": "complication", 
               "name": "complication", 
               "bundleId": "com.mpiannucci.example1.watch.compl",
-              "sourceDir": "complication",
+              "sourceDir": "extensions/complication",
               "sourceFiles": ["complication.swift"],
               "entitlementsFile": "complication.entitlements",
-              "frameworks": ["SwiftUI.framework", "WidgetKit.framework"]
+              "frameworks": ["SwiftUI.framework", "WidgetKit.framework"],
+              "commonSourceDir": "extensions/common",
+              "commonSourceFiles": ["shared.swift"]
             }
           ]
         }
