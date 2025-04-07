@@ -81,14 +81,17 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     const targetSourceDirPath = path_1.default.join(projectRoot, target.sourceDir);
     const targetFilesDir = path_1.default.join(platformProjectPath, target.name);
     fs_extra_1.default.copySync(targetSourceDirPath, targetFilesDir);
+    let commonSourceFiles = [];
     if (target.commonSourceDir) {
         const commonSourceDirPath = path_1.default.join(projectRoot, target.commonSourceDir);
         target.commonSourceFiles?.forEach(file => {
             const filePath = path_1.default.join(commonSourceDirPath, file);
-            fs_extra_1.default.copySync(filePath, `${targetFilesDir}/${file}`);
+            const newFileName = file.replace(".swift", `_${target.name}.swift`);
+            commonSourceFiles.push(newFileName);
+            fs_extra_1.default.copySync(filePath, `${targetFilesDir}/${newFileName}`);
         });
     }
-    const targetSourceFiles = [...target.sourceFiles, ...(target.commonSourceFiles || [])];
+    const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
     const targetFiles = ["Assets.xcassets", "Info.plist", ...targetSourceFiles];
     if (target.entitlementsFile) {
         targetFiles.push(target.entitlementsFile);

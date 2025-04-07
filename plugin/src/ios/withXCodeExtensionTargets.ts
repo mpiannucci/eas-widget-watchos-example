@@ -104,6 +104,7 @@ async function addXcodeTarget(
     )
     fs.copySync(targetSourceDirPath, targetFilesDir)
 
+    let commonSourceFiles: string[] = []
     if (target.commonSourceDir) {
         const commonSourceDirPath = path.join(
             projectRoot,
@@ -115,11 +116,13 @@ async function addXcodeTarget(
                 commonSourceDirPath,
                 file
             )
-            fs.copySync(filePath, `${targetFilesDir}/${file}`)
+            const newFileName = file.replace(".swift", `_${target.name}.swift`)
+            commonSourceFiles.push(newFileName)
+            fs.copySync(filePath, `${targetFilesDir}/${newFileName}`)
         })
     }
 
-    const targetSourceFiles = [...target.sourceFiles, ...(target.commonSourceFiles || [])];
+    const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
     const targetFiles = ["Assets.xcassets", "Info.plist", ...targetSourceFiles];
     if (target.entitlementsFile) {
         targetFiles.push(target.entitlementsFile)
