@@ -20,11 +20,13 @@
     "preset": "jest-expo"
   },
   "dependencies": {
+    "@bacons/xcode": "^1.0.0-alpha.24",
     "@expo/vector-icons": "^14.0.2",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "expo": "~52.0.43",
     "expo-blur": "~14.0.3",
+    "expo-build-properties": "~0.13.2",
     "expo-constants": "~17.0.8",
     "expo-font": "~13.0.4",
     "expo-haptics": "~14.0.1",
@@ -43,8 +45,7 @@
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.5",
-    "expo-build-properties": "~0.13.2"
+    "react-native-webview": "13.12.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -53,14 +54,14 @@
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-test-renderer": "^18.3.0",
+    "expo-build-properties": "~0.13.2",
     "expo-module-scripts": "^4.0.5",
     "fs-extra": "^11.3.0",
     "glob": "^11.0.1",
     "jest": "^29.2.1",
     "jest-expo": "~52.0.6",
     "react-test-renderer": "18.3.1",
-    "typescript": "^5.3.3",
-    "expo-build-properties": "~0.13.2"
+    "typescript": "^5.3.3"
   },
   "private": true
 }
