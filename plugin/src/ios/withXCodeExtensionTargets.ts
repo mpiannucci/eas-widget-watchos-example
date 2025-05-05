@@ -170,11 +170,11 @@ async function addXcodeTarget(
     // // Xcode projects don't contain these if there is only one target
     // // An upstream fix should be made to the code referenced in this link:
     // //   - https://github.com/apache/cordova-node-xcode/blob/8b98cabc5978359db88dc9ff2d4c015cba40f150/lib/pbxProject.js#L860
-    const projObjects = xcodeProject.hash.project.objects
-    projObjects["PBXTargetDependency"] =
-        projObjects["PBXTargetDependency"] || {}
-    projObjects["PBXContainerItemProxy"] =
-        projObjects["PBXTargetDependency"] || {}
+    // const projObjects = xcodeProject.hash.project.objects
+    // projObjects["PBXTargetDependency"] =
+    //     projObjects["PBXTargetDependency"] || {}
+    // projObjects["PBXContainerItemProxy"] =
+    //     projObjects["PBXTargetDependency"] || {}
 
     // // add target
     // use application not watch2_app https://stackoverflow.com/a/75432468
