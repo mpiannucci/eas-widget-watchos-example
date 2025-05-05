@@ -2,6 +2,8 @@ import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins"
 import fs from "fs-extra"
 import path from "path"
 import xcode from "xcode"
+import { PBXGroup, XcodeProject } from "@bacons/xcode"
+import * as xcodeParse from "@bacons/xcode/json";
 
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
     ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
@@ -78,16 +80,17 @@ async function updateXCodeProj(
     developmentTeamId: string,
     targets: IosExtensionTarget[],
 ) {
-    const xcodeProject = xcode.project(projectPath);
+    const xcodeProject = await XcodeProject.open(projectPath);
 
-    xcodeProject.parse(() => {
-        targets.forEach(target => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target))
-        fs.writeFileSync(projectPath, xcodeProject.writeSync())
-    });
+    targets.forEach(target => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target))
+    const contents = xcodeParse.build(xcodeProject.toJSON());
+    if (contents.trim().length) {
+        await fs.promises.writeFile(projectPath, contents)
+    }
 }
 
 async function addXcodeTarget(
-    xcodeProject: any,
+    xcodeProject: XcodeProject,
     projectRoot: string,
     platformProjectPath: string,
     developmentTeamId: string,
@@ -128,7 +131,20 @@ async function addXcodeTarget(
         targetFiles.push(target.entitlementsFile)
     }
 
-    const pbxGroup = xcodeProject.addPbxGroup(
+    // TODO: Loop over all of the above files. add every file as a PBXFileReference, then if its a build asset add it as a PBXBuildFile
+    // TODO: Then add shared files to a PBXGroup
+    // TODO: Then add the shared PBXGroup to the PBXProject
+    // TODO: Add any other files to the a different PBXGroup for the target
+
+    const pbxGroup = PBXGroup.create(
+        xcodeProject,
+        {
+            name: target.name,
+            children: targetFiles,
+        }
+    )
+
+    const pbxGroup = xcodeProject.rootObject.addPbxGroup(
         targetFiles,
         target.name,
         target.name,
