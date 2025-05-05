@@ -75,6 +75,7 @@ async function updateXCodeProj(projectRoot, projectPath, platformProjectPath, de
     xcodeProject.parse(() => {
         targets.forEach(target => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target));
         fs_extra_1.default.writeFileSync(projectPath, xcodeProject.writeSync());
+        fs_extra_1.default.writeFileSync("/Users/matthew/Developer/expo-apple-watch-widget-example/reference/truth.pbxproj", xcodeProject.writeSync());
     });
 }
 async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target) {
