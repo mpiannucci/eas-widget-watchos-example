@@ -2,7 +2,7 @@ import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins"
 import fs from "fs-extra"
 import path from "path"
 import xcode from "xcode"
-import { PBXGroup, XcodeProject } from "@bacons/xcode"
+import { PBXGroup, XcodeProject, PBXFileReference, PBXBuildFile } from "@bacons/xcode"
 import * as xcodeParse from "@bacons/xcode/json";
 
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
@@ -131,33 +131,36 @@ async function addXcodeTarget(
         targetFiles.push(target.entitlementsFile)
     }
 
-    // TODO: Loop over all of the above files. add every file as a PBXFileReference, then if its a build asset add it as a PBXBuildFile
-    // TODO: Then add shared files to a PBXGroup
-    // TODO: Then add the shared PBXGroup to the PBXProject
-    // TODO: Add any other files to the a different PBXGroup for the target
+    // Create the group
+    const pbxGroup = PBXGroup.create(xcodeProject, {
+        name: target.name,
+        path: target.name,
+        children: []
+    });
 
-    const pbxGroup = PBXGroup.create(
-        xcodeProject,
-        {
-            name: target.name,
-            children: targetFiles,
-        }
-    )
+    // For each file in targetFiles, create file references and build files
+    const buildFiles = targetFiles.map(file => {
+        // Create file reference
+        const fileReference = PBXFileReference.create(xcodeProject, {
+            path: file,
+            sourceTree: "SOURCE_ROOT" as const
+        });
+        
+        // Add file reference to group
+        pbxGroup.props.children.push(fileReference);
+        
+        // Create build file
+        return PBXBuildFile.create(xcodeProject, {
+            fileRef: fileReference
+        });
+    });
 
-    const pbxGroup = xcodeProject.rootObject.addPbxGroup(
-        targetFiles,
-        target.name,
-        target.name,
-    )
+    // Add group to main group
+    const mainGroup = xcodeProject.rootObject.props.mainGroup;
+    mainGroup.props.children.push(pbxGroup);
 
-    // Add the new PBXGroup to the top level group. This makes the
-    // files / folder appear in the file explorer in Xcode.
-    const groups = xcodeProject.hash.project.objects.PBXGroup
-    Object.keys(groups).forEach(function (groupKey) {
-        if (groups[groupKey].name === undefined) {
-            xcodeProject.addToPbxGroup(pbxGroup.uuid, groupKey)
-        }
-    })
+    // We'll add the build files to the appropriate build phases later
+    // when we create the target and its build phases
 
     // // WORK AROUND for codeProject.addTarget BUG
     // // Xcode projects don't contain these if there is only one target
