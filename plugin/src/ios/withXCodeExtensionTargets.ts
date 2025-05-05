@@ -2,8 +2,12 @@ import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins"
 import fs from "fs-extra"
 import path from "path"
 import xcode from "xcode"
-import { PBXGroup, XcodeProject, PBXFileReference, PBXBuildFile } from "@bacons/xcode"
+import { PBXGroup, XcodeProject, PBXFileReference, PBXBuildFile, PBXTargetDependency, PBXContainerItemProxy } from "@bacons/xcode"
+import { XCConfigurationList, XCBuildConfiguration, PBXNativeTarget, PBXSourcesBuildPhase, PBXFrameworksBuildPhase, PBXResourcesBuildPhase, PBXCopyFilesBuildPhase } from "@bacons/xcode"
 import * as xcodeParse from "@bacons/xcode/json";
+import type { BuildSettings } from "@bacons/xcode/json";
+import type { SubFolder, PBXProductType } from "@bacons/xcode/json";
+import { ISA } from "@bacons/xcode/json";
 
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
     ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
@@ -186,91 +190,132 @@ async function addXcodeTarget(
             break;
     };
 
-    const newTarget = xcodeProject.addTarget(
-        target.name,
-        targetType,
-        target.name,
-        target.bundleId,
-    )
+    // Create configuration list for the target
+    const configurationList = XCConfigurationList.create(xcodeProject, {
+        defaultConfigurationName: "Release",
+        buildConfigurations: [
+            XCBuildConfiguration.create(xcodeProject, {
+                name: "Debug",
+                buildSettings: {
+                    ...WATCH_BUILD_CONFIGURATION_SETTINGS,
+                    SWIFT_COMPILATION_MODE: "singlefile",
+                    SWIFT_OPTIMIZATION_LEVEL: "-Onone",
+                    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+                    INFOPLIST_FILE: `${target.name}/Info.plist`,
+                    GENERATE_INFOPLIST_FILE: "YES",
+                } as BuildSettings
+            }),
+            XCBuildConfiguration.create(xcodeProject, {
+                name: "Release",
+                buildSettings: {
+                    ...WATCH_BUILD_CONFIGURATION_SETTINGS,
+                    SWIFT_COMPILATION_MODE: "wholemodule",
+                    SWIFT_OPTIMIZATION_LEVEL: "-O",
+                    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+                    INFOPLIST_FILE: `${target.name}/Info.plist`,
+                    GENERATE_INFOPLIST_FILE: "YES",
+                } as BuildSettings
+            })
+        ]
+    });
 
-    // add build phase
-    xcodeProject.addBuildPhase(
-        targetSourceFiles,
-        "PBXSourcesBuildPhase",
-        "Sources",
-        newTarget.uuid,
-        targetType,
-        target.name,
-    )
-    xcodeProject.addBuildPhase(
-        target.frameworks,
-        "PBXFrameworksBuildPhase",
-        "Frameworks",
-        newTarget.uuid,
-        targetType,
-        target.name
-    )
-    xcodeProject.addBuildPhase(
-        [target.name + "/Assets.xcassets"],
-        "PBXResourcesBuildPhase",
-        "Resources",
-        newTarget.uuid,
-        targetType,
-        target.name,
-    )
+    // Create the target
+    const nativeTarget = PBXNativeTarget.create(xcodeProject, {
+        name: target.name,
+        productName: target.name,
+        productType: targetType as PBXProductType,
+        buildConfigurationList: configurationList,
+        buildPhases: [],
+        dependencies: []
+    });
 
-    // We need to embed the watch app into the main app, this is done automagically for 
-    // watchos2 apps, but not for the new regular application coded watch apps
+    // Add target to project
+    xcodeProject.rootObject.props.targets.push(nativeTarget);
+
+    // Create and add build phases
+    const sourcesBuildPhase = nativeTarget.createBuildPhase(PBXSourcesBuildPhase, {
+        files: buildFiles.filter(bf => {
+            const fileRef = bf.props.fileRef;
+            return fileRef.props.path?.endsWith('.swift') || fileRef.props.path?.endsWith('.m');
+        }),
+        buildActionMask: 2147483647,
+        runOnlyForDeploymentPostprocessing: 0
+    });
+
+    const frameworksBuildPhase = nativeTarget.createBuildPhase(PBXFrameworksBuildPhase, {
+        files: target.frameworks.map(framework => {
+            const fileRef = PBXFileReference.create(xcodeProject, {
+                path: framework,
+                sourceTree: "SDKROOT" as const
+            });
+            return PBXBuildFile.create(xcodeProject, { fileRef });
+        }),
+        buildActionMask: 2147483647,
+        runOnlyForDeploymentPostprocessing: 0
+    });
+
+    const resourcesBuildPhase = nativeTarget.createBuildPhase(PBXResourcesBuildPhase, {
+        files: buildFiles.filter(bf => {
+            const fileRef = bf.props.fileRef;
+            return fileRef.props.path?.endsWith('.xcassets');
+        }),
+        buildActionMask: 2147483647,
+        runOnlyForDeploymentPostprocessing: 0
+    });
+
+    // Handle watch app specific setup
     if (target.type === 'watch') {
-        // Create CopyFiles phase in first target
-        xcodeProject.addBuildPhase(
-            [target.name + '.app'],
-            'PBXCopyFilesBuildPhase',
-            'Embed Watch Content',
-            xcodeProject.getFirstTarget().uuid,
-            targetType,
-            '"$(CONTENTS_FOLDER_PATH)/Watch"'
-        );
+        // Create copy files phase to embed watch app in main app
+        const copyFilesPhase = nativeTarget.createBuildPhase(PBXCopyFilesBuildPhase, {
+            dstPath: '$(CONTENTS_FOLDER_PATH)/Watch',
+            dstSubfolderSpec: 16, // productsDirectory
+            files: [PBXBuildFile.create(xcodeProject, {
+                fileRef: nativeTarget.props.productReference!
+            })],
+            buildActionMask: 2147483647,
+            runOnlyForDeploymentPostprocessing: 0
+        });
+        
+        const mainTarget = xcodeProject.rootObject.getMainAppTarget('ios');
+        if (mainTarget) {
+            mainTarget.props.buildPhases.push(copyFilesPhase);
+        }
     }
 
-    // Create CopyFiles phase in watch target (if exists)
-    // THIS IS A HACK, it assumes that the complication is always 
-    // listed right after the watch app, and embeds the complication
-    // into the watch app 
-    if (target.type === "complication") {
-        const targets: string[] = getTargetUuids(xcodeProject);
-        const currentIndex = targets.indexOf(newTarget.uuid);
-        const watchAppIndex = currentIndex - 1;
+    // Handle complication specific setup
+    if (target.type === 'complication') {
+        // Get the watch app target (should be the previous target)
+        const targets = xcodeProject.rootObject.props.targets;
+        const watchAppIndex = targets.indexOf(nativeTarget) - 1;
+        const watchAppTarget = targets[watchAppIndex] as PBXNativeTarget;
 
-        // Because the way pbxProject is harddcoded to add app_extension targets as 
-        // dependencies of the main ios app, we need to remove it from the ios app 
-        // dependencies and instead add it to the watch app dependencies. This is because
-        // ios 16 and watchos 9 use application and app_extension target types instead of the older
-        // watch2_app and watch2_extension target types
-        var nativeTargets = xcodeProject.pbxNativeTargetSection();
-        nativeTargets[targets[0]].dependencies.pop();
+        if (watchAppTarget) {
+            // Add dependency
+            watchAppTarget.props.dependencies.push(PBXTargetDependency.create(xcodeProject, {
+                target: nativeTarget,
+                targetProxy: PBXContainerItemProxy.create(xcodeProject, {
+                    containerPortal: xcodeProject.rootObject,
+                    proxyType: 1,
+                    remoteGlobalIDString: nativeTarget.uuid,
+                    remoteInfo: nativeTarget.props.name
+                })
+            }));
 
-        // Add the complication as a dependency of the watch app
-        xcodeProject.addTargetDependency(targets[watchAppIndex], [newTarget.uuid]);
-
-        // When the target is created, it is also added to the copy files build phase of the main app
-        // Remove it from there so it is not a child of the main app and we can add it to be embedded 
-        // into the watch app
-        const primaryTargetBuildPhase = xcodeProject.pbxCopyfilesBuildPhaseObj(targets[0]);
-        primaryTargetBuildPhase.files.pop();
-
-        // Then add the target product file to the watch apps copy files build phase
-        xcodeProject.addBuildPhase(
-            [target.name + '.appex'],
-            'PBXCopyFilesBuildPhase',
-            'Embed App Extensions',
-            targets[watchAppIndex],
-            targetType,
-        );
+            // Create copy files phase to embed complication in watch app
+            const copyFilesPhase = watchAppTarget.createBuildPhase(PBXCopyFilesBuildPhase, {
+                dstPath: '',
+                dstSubfolderSpec: 13, // plugins
+                files: [PBXBuildFile.create(xcodeProject, {
+                    fileRef: nativeTarget.props.productReference!
+                })],
+                buildActionMask: 2147483647,
+                runOnlyForDeploymentPostprocessing: 0
+            });
+        }
     }
 
     /* Update build configurations */
-    const configurations = xcodeProject.pbxXCBuildConfigurationSection()
+    const configurations = xcodeProject.rootObject.props.buildConfigurationList.props.buildConfigurations;
 
     let extras: any = {}
     let buildSettings: any = {};
@@ -296,26 +341,21 @@ async function addXcodeTarget(
         buildSettings["CODE_SIGN_ENTITLEMENTS"] = `${target.name}/${target.entitlementsFile}`;
     }
 
-    // NOTE: Installing the complication did not work until adding this to the 
-    // build settings: https://www.appsloveworld.com/coding/ios/11/failed-to-set-plugin-placeholders-message
-
-    for (const key in configurations) {
-        if (typeof configurations[key].buildSettings !== "undefined") {
-            const productName = configurations[key].buildSettings.PRODUCT_NAME
-            if (productName === `"${target.name}"`) {
-                configurations[key].buildSettings = {
-                    ...configurations[key].buildSettings,
-                    ...buildSettings,
-                    DEVELOPMENT_TEAM: developmentTeamId,
-                    PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
-                    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
-                    INFOPLIST_FILE: `${target.name}/Info.plist`,
-                    INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-                    ...extras,
-                }
-            }
+    // Update build settings for each configuration
+    configurations.forEach((config: XCBuildConfiguration) => {
+        if (config.props.name === "Debug" || config.props.name === "Release") {
+            config.props.buildSettings = {
+                ...config.props.buildSettings,
+                ...buildSettings,
+                DEVELOPMENT_TEAM: developmentTeamId,
+                PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
+                PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+                INFOPLIST_FILE: `${target.name}/Info.plist`,
+                INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
+                ...extras,
+            };
         }
-    }
+    });
 }
 
 function getTargetUuids(project: any) {
