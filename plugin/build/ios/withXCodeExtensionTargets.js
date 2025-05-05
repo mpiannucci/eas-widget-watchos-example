@@ -143,7 +143,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
         // Create file reference
         const fileReference = xcode_1.PBXFileReference.create(xcodeProject, {
             path: file,
-            sourceTree: "SOURCE_ROOT"
+            sourceTree: "<group>"
         });
         // Add file reference to group
         pbxGroup.props.children.push(fileReference);
@@ -223,7 +223,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     const sourcesBuildPhase = nativeTarget.createBuildPhase(xcode_2.PBXSourcesBuildPhase, {
         files: buildFiles.filter(bf => {
             const fileRef = bf.props.fileRef;
-            return fileRef.props.path?.endsWith('.swift') || fileRef.props.path?.endsWith('.m');
+            return fileRef && (fileRef.props.path?.endsWith('.swift') || fileRef.props.path?.endsWith('.m'));
         }),
         buildActionMask: 2147483647,
         runOnlyForDeploymentPostprocessing: 0
@@ -242,7 +242,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     const resourcesBuildPhase = nativeTarget.createBuildPhase(xcode_2.PBXResourcesBuildPhase, {
         files: buildFiles.filter(bf => {
             const fileRef = bf.props.fileRef;
-            return fileRef.props.path?.endsWith('.xcassets');
+            return fileRef && fileRef.props.path?.endsWith('.xcassets');
         }),
         buildActionMask: 2147483647,
         runOnlyForDeploymentPostprocessing: 0
@@ -250,18 +250,20 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     // Handle watch app specific setup
     if (target.type === 'watch') {
         // Create copy files phase to embed watch app in main app
-        const copyFilesPhase = nativeTarget.createBuildPhase(xcode_2.PBXCopyFilesBuildPhase, {
-            dstPath: '$(CONTENTS_FOLDER_PATH)/Watch',
-            dstSubfolderSpec: 16, // productsDirectory
-            files: [xcode_1.PBXBuildFile.create(xcodeProject, {
-                    fileRef: nativeTarget.props.productReference
-                })],
-            buildActionMask: 2147483647,
-            runOnlyForDeploymentPostprocessing: 0
-        });
-        const mainTarget = xcodeProject.rootObject.getMainAppTarget('ios');
-        if (mainTarget) {
-            mainTarget.props.buildPhases.push(copyFilesPhase);
+        if (nativeTarget.props.productReference) {
+            const copyFilesPhase = nativeTarget.createBuildPhase(xcode_2.PBXCopyFilesBuildPhase, {
+                dstPath: '$(CONTENTS_FOLDER_PATH)/Watch',
+                dstSubfolderSpec: 16, // productsDirectory
+                files: [xcode_1.PBXBuildFile.create(xcodeProject, {
+                        fileRef: nativeTarget.props.productReference
+                    })],
+                buildActionMask: 2147483647,
+                runOnlyForDeploymentPostprocessing: 0
+            });
+            const mainTarget = xcodeProject.rootObject.getMainAppTarget('ios');
+            if (mainTarget) {
+                mainTarget.props.buildPhases.push(copyFilesPhase);
+            }
         }
     }
     // Handle complication specific setup
@@ -270,7 +272,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
         const targets = xcodeProject.rootObject.props.targets;
         const watchAppIndex = targets.indexOf(nativeTarget) - 1;
         const watchAppTarget = targets[watchAppIndex];
-        if (watchAppTarget) {
+        if (watchAppTarget && nativeTarget.props.productReference) {
             // Add dependency
             watchAppTarget.props.dependencies.push(xcode_1.PBXTargetDependency.create(xcodeProject, {
                 target: nativeTarget,
