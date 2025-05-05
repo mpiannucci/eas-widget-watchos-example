@@ -1,48 +1,13 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.withXCodeExtensionTargets = void 0;
-const config_plugins_1 = require("@expo/config-plugins");
+const xcode_1 = require("@bacons/xcode");
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const path_1 = __importDefault(require("path"));
-const xcode_1 = require("@bacons/xcode");
-const xcode_2 = require("@bacons/xcode");
-const xcodeParse = __importStar(require("@bacons/xcode/json"));
+const withXcparse_1 = require("./withXcparse");
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
     ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
     ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
@@ -59,7 +24,7 @@ const WATCH_BUILD_CONFIGURATION_SETTINGS = {
     SWIFT_EMIT_LOC_STRINGS: "YES",
     SWIFT_VERSION: "5.0",
     TARGETED_DEVICE_FAMILY: "4",
-    WATCHOS_DEPLOYMENT_TARGET: "9.4"
+    WATCHOS_DEPLOYMENT_TARGET: "9.4",
 };
 const WIDGET_BUILD_CONFIGURATION_SETTINGS = {
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
@@ -88,15 +53,16 @@ const WIDGET_BUILD_CONFIGURATION_SETTINGS = {
     TARGETED_DEVICE_FAMILY: '"1"',
 };
 const withXCodeExtensionTargets = (config, options) => {
-    return (0, config_plugins_1.withXcodeProject)(config, async (newConfig) => {
+    return (0, withXcparse_1.withXcodeProjectBeta)(config, async (config) => {
         try {
-            const projectName = newConfig.modRequest.projectName;
-            const projectRoot = newConfig.modRequest.projectRoot;
-            const platformProjectPath = newConfig.modRequest.platformProjectRoot;
+            console.log(config.modResults);
+            const projectName = config.modRequest.projectName;
+            const projectRoot = config.modRequest.projectRoot;
+            const platformProjectPath = config.modRequest.platformProjectRoot;
             const bundleId = config.ios?.bundleIdentifier || "";
-            const projectPath = `${newConfig.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
-            await updateXCodeProj(projectRoot, projectPath, platformProjectPath, options.devTeamId, options.targets);
-            return newConfig;
+            const projectPath = `${config.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
+            await updateXCodeProj(config.modResults, projectRoot, projectPath, platformProjectPath, options.devTeamId, options.targets);
+            return config;
         }
         catch (e) {
             console.error(e);
@@ -105,14 +71,8 @@ const withXCodeExtensionTargets = (config, options) => {
     });
 };
 exports.withXCodeExtensionTargets = withXCodeExtensionTargets;
-async function updateXCodeProj(projectRoot, projectPath, platformProjectPath, developmentTeamId, targets) {
-    const xcodeProject = await xcode_1.XcodeProject.open(projectPath);
-    targets.forEach(target => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target));
-    const contents = xcodeParse.build(xcodeProject.toJSON());
-    if (contents.trim().length) {
-        fs_extra_1.default.writeFileSync(projectPath, contents);
-        fs_extra_1.default.writeFileSync("reference/generated.pbxproj", contents);
-    }
+async function updateXCodeProj(xcodeProject, projectRoot, projectPath, platformProjectPath, developmentTeamId, targets) {
+    targets.forEach((target) => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target));
 }
 async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target) {
     const targetSourceDirPath = path_1.default.join(projectRoot, target.sourceDir);
@@ -121,7 +81,7 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     let commonSourceFiles = [];
     if (target.commonSourceDir) {
         const commonSourceDirPath = path_1.default.join(projectRoot, target.commonSourceDir);
-        target.commonSourceFiles?.forEach(file => {
+        target.commonSourceFiles?.forEach((file) => {
             const filePath = path_1.default.join(commonSourceDirPath, file);
             const newFileName = file.replace(".swift", `_${target.name}.swift`);
             commonSourceFiles.push(newFileName);
@@ -138,16 +98,16 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
     const pbxGroup = xcode_1.PBXGroup.create(xcodeProject, {
         name: target.name,
         path: target.name,
-        children: []
+        children: [],
     });
     // Create file references and build files
     const fileReferences = [];
     // const buildFiles: PBXBuildFile[] = [];
-    targetFiles.forEach(file => {
+    targetFiles.forEach((file) => {
         // Create file reference
         const fileReference = xcode_1.PBXFileReference.create(xcodeProject, {
             path: file,
-            sourceTree: "<group>"
+            sourceTree: "<group>",
         });
         // Add file reference to group
         pbxGroup.props.children.push(fileReference);
@@ -192,31 +152,41 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
         explicitFileType: `wrapper.${productExtension}`,
         includeInIndex: 0,
         path: `${target.name}.${productExtension}`,
-        sourceTree: "BUILT_PRODUCTS_DIR"
+        sourceTree: "BUILT_PRODUCTS_DIR",
     });
     // Add product reference to Products group
-    const productsGroup = xcodeProject.rootObject.props.mainGroup.getChildGroups().find(group => group.props.name === "Products");
+    const productsGroup = xcodeProject.rootObject.props.mainGroup
+        .getChildGroups()
+        .find((group) => group.props.name === "Products");
     if (productsGroup) {
         productsGroup.createNewProductRefForTarget(target.name, productType);
     }
     // Create configuration list for the target
-    const configurationList = xcode_2.XCConfigurationList.create(xcodeProject, {
+    const configurationList = xcode_1.XCConfigurationList.create(xcodeProject, {
         defaultConfigurationName: "Release",
         buildConfigurations: [
-            xcode_2.XCBuildConfiguration.create(xcodeProject, {
+            xcode_1.XCBuildConfiguration.create(xcodeProject, {
                 name: "Debug",
                 buildSettings: {
-                    ...(target.type === "watch" ? WATCH_BUILD_CONFIGURATION_SETTINGS : WIDGET_BUILD_CONFIGURATION_SETTINGS),
+                    ...(target.type === "watch"
+                        ? WATCH_BUILD_CONFIGURATION_SETTINGS
+                        : WIDGET_BUILD_CONFIGURATION_SETTINGS),
                     PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
                     INFOPLIST_FILE: `${target.name}/Info.plist`,
                     DEVELOPMENT_TEAM: developmentTeamId,
                     PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
                     INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-                    ...(target.entitlementsFile ? { CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}` } : {}),
-                    ...(target.type === "watch" ? {
-                        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
-                        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-                    } : {}),
+                    ...(target.entitlementsFile
+                        ? {
+                            CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
+                        }
+                        : {}),
+                    ...(target.type === "watch"
+                        ? {
+                            INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
+                            INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
+                        }
+                        : {}),
                     SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
                     WATCHOS_DEPLOYMENT_TARGET: "9.4",
                     SWIFT_VERSION: "5.0",
@@ -228,23 +198,31 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
                     ENABLE_PREVIEWS: "YES",
                     SKIP_INSTALL: "YES",
                     SWIFT_EMIT_LOC_STRINGS: "YES",
-                    TARGETED_DEVICE_FAMILY: "4"
-                }
+                    TARGETED_DEVICE_FAMILY: "4",
+                },
             }),
-            xcode_2.XCBuildConfiguration.create(xcodeProject, {
+            xcode_1.XCBuildConfiguration.create(xcodeProject, {
                 name: "Release",
                 buildSettings: {
-                    ...(target.type === "watch" ? WATCH_BUILD_CONFIGURATION_SETTINGS : WIDGET_BUILD_CONFIGURATION_SETTINGS),
+                    ...(target.type === "watch"
+                        ? WATCH_BUILD_CONFIGURATION_SETTINGS
+                        : WIDGET_BUILD_CONFIGURATION_SETTINGS),
                     PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
                     INFOPLIST_FILE: `${target.name}/Info.plist`,
                     DEVELOPMENT_TEAM: developmentTeamId,
                     PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
                     INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-                    ...(target.entitlementsFile ? { CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}` } : {}),
-                    ...(target.type === "watch" ? {
-                        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
-                        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-                    } : {}),
+                    ...(target.entitlementsFile
+                        ? {
+                            CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
+                        }
+                        : {}),
+                    ...(target.type === "watch"
+                        ? {
+                            INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
+                            INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
+                        }
+                        : {}),
                     SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
                     WATCHOS_DEPLOYMENT_TARGET: "9.4",
                     SWIFT_VERSION: "5.0",
@@ -256,54 +234,56 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
                     ENABLE_PREVIEWS: "YES",
                     SKIP_INSTALL: "YES",
                     SWIFT_EMIT_LOC_STRINGS: "YES",
-                    TARGETED_DEVICE_FAMILY: "4"
-                }
-            })
-        ]
+                    TARGETED_DEVICE_FAMILY: "4",
+                },
+            }),
+        ],
     });
     // Create target
-    const targetObject = xcode_2.PBXNativeTarget.create(xcodeProject, {
+    const targetObject = xcode_1.PBXNativeTarget.create(xcodeProject, {
         name: target.name,
         productName: target.name,
         productReference: productReference,
         productType: targetType,
         buildConfigurationList: configurationList,
-        buildPhases: []
+        buildPhases: [],
     });
     const sourcesBuildPhase = targetObject.getSourcesBuildPhase();
-    targetSourceFiles.forEach(file => {
-        const fileRef = fileReferences.find(fr => fr.props.path === file);
+    targetSourceFiles.forEach((file) => {
+        const fileRef = fileReferences.find((fr) => fr.props.path === file);
         if (fileRef) {
             sourcesBuildPhase.ensureFile({
-                fileRef: fileRef
+                fileRef: fileRef,
             });
         }
     });
     targetObject.ensureFrameworks(target.frameworks ?? []);
     const resourcesBuildPhase = targetObject.getResourcesBuildPhase();
-    targetResourceFiles.forEach(file => {
-        const fileRef = fileReferences.find(fr => fr.props.path === file);
+    targetResourceFiles.forEach((file) => {
+        const fileRef = fileReferences.find((fr) => fr.props.path === file);
         if (fileRef) {
             resourcesBuildPhase.ensureFile({
-                fileRef: fileRef
+                fileRef: fileRef,
             });
         }
     });
     // Add Copy Files build phase for extensions
     if (target.type !== "watch") {
-        const copyFilesPhase = targetObject.createBuildPhase(xcode_2.PBXCopyFilesBuildPhase, {
+        const copyFilesPhase = targetObject.createBuildPhase(xcode_1.PBXCopyFilesBuildPhase, {
             dstPath: "",
             dstSubfolderSpec: 6,
-            files: [xcode_1.PBXBuildFile.create(xcodeProject, {
-                    fileRef: productReference
-                })],
-            runOnlyForDeploymentPostprocessing: 0
+            files: [
+                xcode_1.PBXBuildFile.create(xcodeProject, {
+                    fileRef: productReference,
+                }),
+            ],
+            runOnlyForDeploymentPostprocessing: 0,
         });
     }
     // Add target to project
     xcodeProject.rootObject.props.targets.push(targetObject);
     // Handle complication specific setup
-    if (target.type === 'complication') {
+    if (target.type === "complication") {
         // Get the watch app target (should be the previous target)
         const targets = xcodeProject.rootObject.props.targets;
         const watchAppIndex = targets.indexOf(targetObject) - 1;
@@ -316,8 +296,8 @@ async function addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, de
                     containerPortal: xcodeProject.rootObject,
                     proxyType: 1,
                     remoteGlobalIDString: targetObject.uuid,
-                    remoteInfo: targetObject.props.name
-                })
+                    remoteInfo: targetObject.props.name,
+                }),
             });
             watchAppTarget.props.dependencies.push(targetDependency);
         }

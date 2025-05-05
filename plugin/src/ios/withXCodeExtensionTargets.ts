@@ -16,6 +16,7 @@ import * as xcodeParse from "@bacons/xcode/json";
 import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins";
 import fs from "fs-extra";
 import path from "path";
+import { withXcodeProjectBeta } from "./withXcparse";
 
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
   ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
@@ -68,22 +69,23 @@ export const withXCodeExtensionTargets: ConfigPlugin<WithExtensionProps> = (
   config,
   options: WithExtensionProps
 ) => {
-  return withXcodeProject(config, async (newConfig) => {
+  return withXcodeProjectBeta(config, async (config) => {
     try {
-      const projectName = newConfig.modRequest.projectName;
-      const projectRoot = newConfig.modRequest.projectRoot;
-      const platformProjectPath = newConfig.modRequest.platformProjectRoot;
+      const projectName = config.modRequest.projectName;
+      const projectRoot = config.modRequest.projectRoot;
+      const platformProjectPath = config.modRequest.platformProjectRoot;
       const bundleId = config.ios?.bundleIdentifier || "";
-      const projectPath = `${newConfig.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
+      const projectPath = `${config.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
 
       await updateXCodeProj(
+        config.modResults,
         projectRoot,
         projectPath,
         platformProjectPath,
         options.devTeamId,
         options.targets
       );
-      return newConfig;
+      return config;
     } catch (e) {
       console.error(e);
       throw e;
@@ -92,14 +94,13 @@ export const withXCodeExtensionTargets: ConfigPlugin<WithExtensionProps> = (
 };
 
 async function updateXCodeProj(
+  xcodeProject: XcodeProject,
   projectRoot: string,
   projectPath: string,
   platformProjectPath: string,
   developmentTeamId: string,
   targets: IosExtensionTarget[]
 ) {
-  const xcodeProject = await XcodeProject.open(projectPath);
-
   targets.forEach((target) =>
     addXcodeTarget(
       xcodeProject,
@@ -109,12 +110,6 @@ async function updateXCodeProj(
       target
     )
   );
-  const contents = xcodeParse.build(xcodeProject.toJSON());
-  if (contents.trim().length) {
-    fs.writeFileSync(projectPath, contents);
-
-    fs.writeFileSync("reference/generated.pbxproj", contents);
-  }
 }
 
 async function addXcodeTarget(
