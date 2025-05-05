@@ -1,6 +1,0 @@
-module Pods_ExpoAppleWidgetandWatchOSExample {
-  umbrella header "Pods-ExpoAppleWidgetandWatchOSExample-umbrella.h"
-
-  export *
-  module * { export * }
-}
