@@ -1,347 +1,381 @@
-import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins"
-import fs from "fs-extra"
-import path from "path"
-import xcode from "xcode"
-import { PBXGroup, XcodeProject, PBXFileReference, PBXBuildFile, PBXTargetDependency, PBXContainerItemProxy } from "@bacons/xcode"
-import { XCConfigurationList, XCBuildConfiguration, PBXNativeTarget, PBXSourcesBuildPhase, PBXFrameworksBuildPhase, PBXResourcesBuildPhase, PBXCopyFilesBuildPhase } from "@bacons/xcode"
+import {
+  PBXBuildFile,
+  PBXContainerItemProxy,
+  PBXCopyFilesBuildPhase,
+  PBXFileReference,
+  PBXGroup,
+  PBXNativeTarget,
+  PBXTargetDependency,
+  XCBuildConfiguration,
+  XCConfigurationList,
+  XcodeProject,
+} from "@bacons/xcode";
+import { PRODUCT_UTI_EXTENSIONS } from "@bacons/xcode/build/api/utils/constants";
+import type { PBXProductType } from "@bacons/xcode/json";
 import * as xcodeParse from "@bacons/xcode/json";
-import type { BuildSettings } from "@bacons/xcode/json";
-import type { SubFolder, PBXProductType } from "@bacons/xcode/json";
-import { ISA, FileType } from "@bacons/xcode/json";
-import { PRODUCT_UTI_EXTENSIONS } from "@bacons/xcode/build/api/utils/constants"
+import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins";
+import fs from "fs-extra";
+import path from "path";
 
 const WATCH_BUILD_CONFIGURATION_SETTINGS = {
-    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
-    ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
-    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-    ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: "NO",
-    CODE_SIGN_STYLE: "Automatic",
-    CURRENT_PROJECT_VERSION: "1",
-    ENABLE_PREVIEWS: "YES",
-    GENERATE_INFOPLIST_FILE: "YES",
-    LD_RUNPATH_SEARCH_PATHS: '"$(inherited) @executable_path/Frameworks"',
-    MARKETING_VERSION: "1.0",
-    SDKROOT: "watchos",
-    SKIP_INSTALL: "YES",
-    SWIFT_EMIT_LOC_STRINGS: "YES",
-    SWIFT_VERSION: "5.0",
-    TARGETED_DEVICE_FAMILY: "4",
-    WATCHOS_DEPLOYMENT_TARGET: "9.4"
-}
+  ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
+  ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
+  ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
+  ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: "NO",
+  CODE_SIGN_STYLE: "Automatic",
+  CURRENT_PROJECT_VERSION: "1",
+  ENABLE_PREVIEWS: "YES",
+  GENERATE_INFOPLIST_FILE: "YES",
+  LD_RUNPATH_SEARCH_PATHS: '"$(inherited) @executable_path/Frameworks"',
+  MARKETING_VERSION: "1.0",
+  SDKROOT: "watchos",
+  SKIP_INSTALL: "YES",
+  SWIFT_EMIT_LOC_STRINGS: "YES",
+  SWIFT_VERSION: "5.0",
+  TARGETED_DEVICE_FAMILY: "4",
+  WATCHOS_DEPLOYMENT_TARGET: "9.4",
+};
 
 const WIDGET_BUILD_CONFIGURATION_SETTINGS = {
-    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-    ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME: "WidgetBackground",
-    CLANG_ANALYZER_NONNULL: "YES",
-    CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION: "YES_AGGRESSIVE",
-    CLANG_CXX_LANGUAGE_STANDARD: '"gnu++17"',
-    CLANG_ENABLE_OBJC_WEAK: "YES",
-    CLANG_WARN_DOCUMENTATION_COMMENTS: "YES",
-    CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: "YES",
-    CLANG_WARN_UNGUARDED_AVAILABILITY: "YES_AGGRESSIVE",
-    CODE_SIGN_STYLE: "Automatic",
-    CURRENT_PROJECT_VERSION: "1",
-    DEBUG_INFORMATION_FORMAT: "dwarf",
-    GCC_C_LANGUAGE_STANDARD: "gnu11",
-    GENERATE_INFOPLIST_FILE: "YES",
-    INFOPLIST_KEY_NSHumanReadableCopyright: '""',
-    IPHONEOS_DEPLOYMENT_TARGET: "14.0",
-    LD_RUNPATH_SEARCH_PATHS:
-        '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
-    MARKETING_VERSION: "1.0",
-    MTL_ENABLE_DEBUG_INFO: "INCLUDE_SOURCE",
-    MTL_FAST_MATH: "YES",
-    SKIP_INSTALL: "YES",
-    SWIFT_EMIT_LOC_STRINGS: "YES",
-    SWIFT_VERSION: "5.0",
-    TARGETED_DEVICE_FAMILY: '"1"',
-}
+  ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
+  ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME: "WidgetBackground",
+  CLANG_ANALYZER_NONNULL: "YES",
+  CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION: "YES_AGGRESSIVE",
+  CLANG_CXX_LANGUAGE_STANDARD: '"gnu++17"',
+  CLANG_ENABLE_OBJC_WEAK: "YES",
+  CLANG_WARN_DOCUMENTATION_COMMENTS: "YES",
+  CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: "YES",
+  CLANG_WARN_UNGUARDED_AVAILABILITY: "YES_AGGRESSIVE",
+  CODE_SIGN_STYLE: "Automatic",
+  CURRENT_PROJECT_VERSION: "1",
+  DEBUG_INFORMATION_FORMAT: "dwarf",
+  GCC_C_LANGUAGE_STANDARD: "gnu11",
+  GENERATE_INFOPLIST_FILE: "YES",
+  INFOPLIST_KEY_NSHumanReadableCopyright: '""',
+  IPHONEOS_DEPLOYMENT_TARGET: "14.0",
+  LD_RUNPATH_SEARCH_PATHS:
+    '"$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"',
+  MARKETING_VERSION: "1.0",
+  MTL_ENABLE_DEBUG_INFO: "INCLUDE_SOURCE",
+  MTL_FAST_MATH: "YES",
+  SKIP_INSTALL: "YES",
+  SWIFT_EMIT_LOC_STRINGS: "YES",
+  SWIFT_VERSION: "5.0",
+  TARGETED_DEVICE_FAMILY: '"1"',
+};
 
 export const withXCodeExtensionTargets: ConfigPlugin<WithExtensionProps> = (
-    config,
-    options: WithExtensionProps,
+  config,
+  options: WithExtensionProps
 ) => {
-    return withXcodeProject(config, async newConfig => {
-        try {
-            const projectName = newConfig.modRequest.projectName
-            const projectRoot = newConfig.modRequest.projectRoot
-            const platformProjectPath = newConfig.modRequest.platformProjectRoot
-            const bundleId = config.ios?.bundleIdentifier || ""
-            const projectPath = `${newConfig.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`
+  return withXcodeProject(config, async (newConfig) => {
+    try {
+      const projectName = newConfig.modRequest.projectName;
+      const projectRoot = newConfig.modRequest.projectRoot;
+      const platformProjectPath = newConfig.modRequest.platformProjectRoot;
+      const bundleId = config.ios?.bundleIdentifier || "";
+      const projectPath = `${newConfig.modRequest.platformProjectRoot}/${projectName}.xcodeproj/project.pbxproj`;
 
-            await updateXCodeProj(projectRoot, projectPath, platformProjectPath, options.devTeamId, options.targets)
-            return newConfig
-        } catch (e) {
-            console.error(e)
-            throw e
-        }
-    })
-}
+      await updateXCodeProj(
+        projectRoot,
+        projectPath,
+        platformProjectPath,
+        options.devTeamId,
+        options.targets
+      );
+      return newConfig;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  });
+};
 
 async function updateXCodeProj(
-    projectRoot: string,
-    projectPath: string,
-    platformProjectPath: string,
-    developmentTeamId: string,
-    targets: IosExtensionTarget[],
+  projectRoot: string,
+  projectPath: string,
+  platformProjectPath: string,
+  developmentTeamId: string,
+  targets: IosExtensionTarget[]
 ) {
-    const xcodeProject = await XcodeProject.open(projectPath);
+  const xcodeProject = await XcodeProject.open(projectPath);
 
-    targets.forEach(target => addXcodeTarget(xcodeProject, projectRoot, platformProjectPath, developmentTeamId, target))
-    const contents = xcodeParse.build(xcodeProject.toJSON());
-    if (contents.trim().length) {
-        fs.writeFileSync(projectPath, contents)
+  targets.forEach((target) =>
+    addXcodeTarget(
+      xcodeProject,
+      projectRoot,
+      platformProjectPath,
+      developmentTeamId,
+      target
+    )
+  );
+  const contents = xcodeParse.build(xcodeProject.toJSON());
+  if (contents.trim().length) {
+    fs.writeFileSync(projectPath, contents);
 
-        fs.writeFileSync("reference/generated.pbxproj", contents)
-    }
+    fs.writeFileSync("reference/generated.pbxproj", contents);
+  }
 }
 
 async function addXcodeTarget(
-    xcodeProject: XcodeProject,
-    projectRoot: string,
-    platformProjectPath: string,
-    developmentTeamId: string,
-    target: IosExtensionTarget,
+  xcodeProject: XcodeProject,
+  projectRoot: string,
+  platformProjectPath: string,
+  developmentTeamId: string,
+  target: IosExtensionTarget
 ) {
-    const targetSourceDirPath = path.join(
-        projectRoot,
-        target.sourceDir,
-    )
+  const targetSourceDirPath = path.join(projectRoot, target.sourceDir);
 
-    const targetFilesDir = path.join(
-        platformProjectPath,
-        target.name
-    )
-    fs.copySync(targetSourceDirPath, targetFilesDir)
+  const targetFilesDir = path.join(platformProjectPath, target.name);
+  fs.copySync(targetSourceDirPath, targetFilesDir);
 
-    let commonSourceFiles: string[] = []
-    if (target.commonSourceDir) {
-        const commonSourceDirPath = path.join(
-            projectRoot,
-            target.commonSourceDir,
-        )
-        
-        target.commonSourceFiles?.forEach(file => {
-            const filePath = path.join(
-                commonSourceDirPath,
-                file
-            )
-            const newFileName = file.replace(".swift", `_${target.name}.swift`)
-            commonSourceFiles.push(newFileName)
-            fs.copySync(filePath, `${targetFilesDir}/${newFileName}`)
-        })
-    }
+  let commonSourceFiles: string[] = [];
+  if (target.commonSourceDir) {
+    const commonSourceDirPath = path.join(projectRoot, target.commonSourceDir);
 
-    const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
-    const targetResourceFiles = ["Assets.xcassets", "Info.plist"]
-    if (target.entitlementsFile) {
-        targetResourceFiles.push(target.entitlementsFile)
-    }
-    const targetFiles = [...targetResourceFiles, ...targetSourceFiles];
+    target.commonSourceFiles?.forEach((file) => {
+      const filePath = path.join(commonSourceDirPath, file);
+      const newFileName = file.replace(".swift", `_${target.name}.swift`);
+      commonSourceFiles.push(newFileName);
+      fs.copySync(filePath, `${targetFilesDir}/${newFileName}`);
+    });
+  }
 
-    // Create the group
-    const pbxGroup = PBXGroup.create(xcodeProject, {
-        name: target.name,
-        path: target.name,
-        children: []
+  const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
+  const targetResourceFiles = ["Assets.xcassets", "Info.plist"];
+  if (target.entitlementsFile) {
+    targetResourceFiles.push(target.entitlementsFile);
+  }
+  const targetFiles = [...targetResourceFiles, ...targetSourceFiles];
+
+  // Create the group
+  const pbxGroup = PBXGroup.create(xcodeProject, {
+    name: target.name,
+    path: target.name,
+    children: [],
+  });
+
+  // Create file references and build files
+  const fileReferences: PBXFileReference[] = [];
+  // const buildFiles: PBXBuildFile[] = [];
+
+  targetFiles.forEach((file) => {
+    // Create file reference
+    const fileReference = PBXFileReference.create(xcodeProject, {
+      path: file,
+      sourceTree: "<group>" as const,
     });
 
-    // Create file references and build files
-    const fileReferences: PBXFileReference[] = [];
-    // const buildFiles: PBXBuildFile[] = [];
+    // Add file reference to group
+    pbxGroup.props.children.push(fileReference);
+    fileReferences.push(fileReference);
 
-    targetFiles.forEach(file => {
-        // Create file reference
-        const fileReference = PBXFileReference.create(xcodeProject, {
-            path: file,
-            sourceTree: "<group>" as const
-        });
-        
-        // Add file reference to group
-        pbxGroup.props.children.push(fileReference);
-        fileReferences.push(fileReference);
-        
-        // Create build file
-        // const buildFile = PBXBuildFile.create(xcodeProject, {
-        //     fileRef: fileReference
-        // });
-        // buildFiles.push(buildFile);
-    });
+    // Create build file
+    // const buildFile = PBXBuildFile.create(xcodeProject, {
+    //     fileRef: fileReference
+    // });
+    // buildFiles.push(buildFile);
+  });
 
-    // Add group to main group
-    const mainGroup = xcodeProject.rootObject.props.mainGroup;
-    mainGroup.props.children.push(pbxGroup);
+  // Add group to main group
+  const mainGroup = xcodeProject.rootObject.props.mainGroup;
+  mainGroup.props.children.push(pbxGroup);
 
-    // Determine target type and product extension
-    let targetType: PBXProductType;
-    let productExtension: string;
-    let productType: keyof typeof PRODUCT_UTI_EXTENSIONS;
-    switch (target.type) {
-        case "widget":
-            targetType = "com.apple.product-type.app-extension";
-            productType = "appExtension";
-            productExtension = "appex";
-            break;
-        case "complication":
-            targetType = "com.apple.product-type.app-extension";
-            productType = "appExtension";
-            productExtension = "appex";
-            break;
-        case "watch":
-            targetType = "com.apple.product-type.application";
-            productExtension = "app";
-            productType = "application";
-            break;
-        default:
-            targetType = "com.apple.product-type.application";
-            productExtension = "app";
-            productType = "application";
-            break;
+  // Determine target type and product extension
+  let targetType: PBXProductType;
+  let productExtension: string;
+  let productType: keyof typeof PRODUCT_UTI_EXTENSIONS;
+  switch (target.type) {
+    case "widget":
+      targetType = "com.apple.product-type.app-extension";
+      productType = "appExtension";
+      productExtension = "appex";
+      break;
+    case "complication":
+      targetType = "com.apple.product-type.app-extension";
+      productType = "appExtension";
+      productExtension = "appex";
+      break;
+    case "watch":
+      targetType = "com.apple.product-type.application";
+      productExtension = "app";
+      productType = "application";
+      break;
+    default:
+      targetType = "com.apple.product-type.application";
+      productExtension = "app";
+      productType = "application";
+      break;
+  }
+
+  // Create product reference
+  const productReference = PBXFileReference.create(xcodeProject, {
+    explicitFileType: `wrapper.${productExtension}` as any,
+    includeInIndex: 0,
+    path: `${target.name}.${productExtension}`,
+    sourceTree: "BUILT_PRODUCTS_DIR" as const,
+  });
+
+  // Add product reference to Products group
+  const productsGroup = xcodeProject.rootObject.props.mainGroup
+    .getChildGroups()
+    .find((group) => group.props.name === "Products");
+  if (productsGroup) {
+    productsGroup.createNewProductRefForTarget(target.name, productType);
+  }
+
+  // Create configuration list for the target
+  const configurationList = XCConfigurationList.create(xcodeProject, {
+    defaultConfigurationName: "Release",
+    buildConfigurations: [
+      XCBuildConfiguration.create(xcodeProject, {
+        name: "Debug",
+        buildSettings: {
+          ...(target.type === "watch"
+            ? WATCH_BUILD_CONFIGURATION_SETTINGS
+            : WIDGET_BUILD_CONFIGURATION_SETTINGS),
+          PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+          INFOPLIST_FILE: `${target.name}/Info.plist`,
+          DEVELOPMENT_TEAM: developmentTeamId,
+          PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
+          INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
+          ...(target.entitlementsFile
+            ? {
+                CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
+              }
+            : {}),
+          ...(target.type === "watch"
+            ? {
+                INFOPLIST_KEY_WKCompanionAppBundleIdentifier:
+                  target.companionAppBundleId,
+                INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
+              }
+            : {}),
+          SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
+          WATCHOS_DEPLOYMENT_TARGET: "9.4",
+          SWIFT_VERSION: "5.0",
+          SWIFT_COMPILATION_MODE: "singlefile",
+          SWIFT_OPTIMIZATION_LEVEL: "-Onone",
+          ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
+          ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
+          ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
+          ENABLE_PREVIEWS: "YES",
+          SKIP_INSTALL: "YES",
+          SWIFT_EMIT_LOC_STRINGS: "YES",
+          TARGETED_DEVICE_FAMILY: "4",
+        } as any,
+      }),
+      XCBuildConfiguration.create(xcodeProject, {
+        name: "Release",
+        buildSettings: {
+          ...(target.type === "watch"
+            ? WATCH_BUILD_CONFIGURATION_SETTINGS
+            : WIDGET_BUILD_CONFIGURATION_SETTINGS),
+          PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+          INFOPLIST_FILE: `${target.name}/Info.plist`,
+          DEVELOPMENT_TEAM: developmentTeamId,
+          PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
+          INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
+          ...(target.entitlementsFile
+            ? {
+                CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
+              }
+            : {}),
+          ...(target.type === "watch"
+            ? {
+                INFOPLIST_KEY_WKCompanionAppBundleIdentifier:
+                  target.companionAppBundleId,
+                INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
+              }
+            : {}),
+          SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
+          WATCHOS_DEPLOYMENT_TARGET: "9.4",
+          SWIFT_VERSION: "5.0",
+          SWIFT_COMPILATION_MODE: "wholemodule",
+          SWIFT_OPTIMIZATION_LEVEL: "-O",
+          ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
+          ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
+          ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
+          ENABLE_PREVIEWS: "YES",
+          SKIP_INSTALL: "YES",
+          SWIFT_EMIT_LOC_STRINGS: "YES",
+          TARGETED_DEVICE_FAMILY: "4",
+        } as any,
+      }),
+    ],
+  });
+
+  // Create target
+  const targetObject = PBXNativeTarget.create(xcodeProject, {
+    name: target.name,
+    productName: target.name,
+    productReference: productReference,
+    productType: targetType,
+    buildConfigurationList: configurationList,
+    buildPhases: [],
+  });
+
+  const sourcesBuildPhase = targetObject.getSourcesBuildPhase();
+  targetSourceFiles.forEach((file) => {
+    const fileRef = fileReferences.find((fr) => fr.props.path === file);
+    if (fileRef) {
+      sourcesBuildPhase.ensureFile({
+        fileRef: fileRef,
+      });
     }
+  });
 
-    // Create product reference
-    const productReference = PBXFileReference.create(xcodeProject, {
-        explicitFileType: `wrapper.${productExtension}` as any,
-        includeInIndex: 0,
-        path: `${target.name}.${productExtension}`,
-        sourceTree: "BUILT_PRODUCTS_DIR" as const
-    });
+  targetObject.ensureFrameworks(target.frameworks ?? []);
 
-    // Add product reference to Products group
-    const productsGroup = xcodeProject.rootObject.props.mainGroup.getChildGroups().find(group => group.props.name === "Products");
-    if (productsGroup) {
-        productsGroup.createNewProductRefForTarget(target.name, productType)
+  const resourcesBuildPhase = targetObject.getResourcesBuildPhase();
+  targetResourceFiles.forEach((file) => {
+    const fileRef = fileReferences.find((fr) => fr.props.path === file);
+    if (fileRef) {
+      resourcesBuildPhase.ensureFile({
+        fileRef: fileRef,
+      });
     }
+  });
 
-    // Create configuration list for the target
-    const configurationList = XCConfigurationList.create(xcodeProject, {
-        defaultConfigurationName: "Release",
-        buildConfigurations: [
-            XCBuildConfiguration.create(xcodeProject, {
-                name: "Debug",
-                buildSettings: {
-                    ...(target.type === "watch" ? WATCH_BUILD_CONFIGURATION_SETTINGS : WIDGET_BUILD_CONFIGURATION_SETTINGS),
-                    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
-                    INFOPLIST_FILE: `${target.name}/Info.plist`,
-                    DEVELOPMENT_TEAM: developmentTeamId,
-                    PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
-                    INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-                    ...(target.entitlementsFile ? { CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}` } : {}),
-                    ...(target.type === "watch" ? {
-                        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
-                        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-                    } : {}),
-                    SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
-                    WATCHOS_DEPLOYMENT_TARGET: "9.4",
-                    SWIFT_VERSION: "5.0",
-                    SWIFT_COMPILATION_MODE: "singlefile",
-                    SWIFT_OPTIMIZATION_LEVEL: "-Onone",
-                    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
-                    ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
-                    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-                    ENABLE_PREVIEWS: "YES",
-                    SKIP_INSTALL: "YES",
-                    SWIFT_EMIT_LOC_STRINGS: "YES",
-                    TARGETED_DEVICE_FAMILY: "4"
-                } as any
-            }),
-            XCBuildConfiguration.create(xcodeProject, {
-                name: "Release",
-                buildSettings: {
-                    ...(target.type === "watch" ? WATCH_BUILD_CONFIGURATION_SETTINGS : WIDGET_BUILD_CONFIGURATION_SETTINGS),
-                    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
-                    INFOPLIST_FILE: `${target.name}/Info.plist`,
-                    DEVELOPMENT_TEAM: developmentTeamId,
-                    PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
-                    INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-                    ...(target.entitlementsFile ? { CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}` } : {}),
-                    ...(target.type === "watch" ? {
-                        INFOPLIST_KEY_WKCompanionAppBundleIdentifier: target.companionAppBundleId,
-                        INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-                    } : {}),
-                    SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
-                    WATCHOS_DEPLOYMENT_TARGET: "9.4",
-                    SWIFT_VERSION: "5.0",
-                    SWIFT_COMPILATION_MODE: "wholemodule",
-                    SWIFT_OPTIMIZATION_LEVEL: "-O",
-                    ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
-                    ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
-                    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-                    ENABLE_PREVIEWS: "YES",
-                    SKIP_INSTALL: "YES",
-                    SWIFT_EMIT_LOC_STRINGS: "YES",
-                    TARGETED_DEVICE_FAMILY: "4"
-                } as any
-            })
-        ]
-    });
+  // Add Copy Files build phase for extensions
+  if (target.type !== "watch") {
+    const copyFilesPhase = targetObject.createBuildPhase(
+      PBXCopyFilesBuildPhase,
+      {
+        dstPath: "",
+        dstSubfolderSpec: 6,
+        files: [
+          PBXBuildFile.create(xcodeProject, {
+            fileRef: productReference,
+          }),
+        ],
+        runOnlyForDeploymentPostprocessing: 0,
+      }
+    );
+  }
 
-    // Create target
-    const targetObject = PBXNativeTarget.create(xcodeProject, {
-        name: target.name,
-        productName: target.name,
-        productReference: productReference,
-        productType: targetType,
-        buildConfigurationList: configurationList,
-        buildPhases: []
-    });
+  // Add target to project
+  xcodeProject.rootObject.props.targets.push(targetObject);
 
-    const sourcesBuildPhase = targetObject.getSourcesBuildPhase();
-    targetSourceFiles.forEach(file => {
-        const fileRef = fileReferences.find(fr => fr.props.path === file);
-        if (fileRef) {
-            sourcesBuildPhase.ensureFile({
-                fileRef: fileRef
-            })
-        }
-    })
+  // Handle complication specific setup
+  if (target.type === "complication") {
+    // Get the watch app target (should be the previous target)
+    const targets = xcodeProject.rootObject.props.targets;
+    const watchAppIndex = targets.indexOf(targetObject) - 1;
+    const watchAppTarget = targets[watchAppIndex] as PBXNativeTarget;
 
-    targetObject.ensureFrameworks(target.frameworks ?? [])
-
-    const resourcesBuildPhase = targetObject.getResourcesBuildPhase();
-    targetResourceFiles.forEach(file => {
-        const fileRef = fileReferences.find(fr => fr.props.path === file);
-        if (fileRef) {
-            resourcesBuildPhase.ensureFile({
-                fileRef: fileRef
-            })
-        }
-    })
-    
-    // Add Copy Files build phase for extensions
-    if (target.type !== "watch") {
-        const copyFilesPhase = targetObject.createBuildPhase(PBXCopyFilesBuildPhase, {
-            dstPath: "",
-            dstSubfolderSpec: 6,
-            files: [PBXBuildFile.create(xcodeProject, {
-                fileRef: productReference
-            })],
-            runOnlyForDeploymentPostprocessing: 0
-        });
+    if (watchAppTarget) {
+      // Add dependency
+      const targetDependency = PBXTargetDependency.create(xcodeProject, {
+        target: targetObject,
+        targetProxy: PBXContainerItemProxy.create(xcodeProject, {
+          containerPortal: xcodeProject.rootObject,
+          proxyType: 1,
+          remoteGlobalIDString: targetObject.uuid,
+          remoteInfo: targetObject.props.name,
+        }),
+      });
+      watchAppTarget.props.dependencies.push(targetDependency);
     }
-
-    // Add target to project
-    xcodeProject.rootObject.props.targets.push(targetObject);
-
-    // Handle complication specific setup
-    if (target.type === 'complication') {
-        // Get the watch app target (should be the previous target)
-        const targets = xcodeProject.rootObject.props.targets;
-        const watchAppIndex = targets.indexOf(targetObject) - 1;
-        const watchAppTarget = targets[watchAppIndex] as PBXNativeTarget;
-
-        if (watchAppTarget) {
-            // Add dependency
-            const targetDependency = PBXTargetDependency.create(xcodeProject, {
-                target: targetObject,
-                targetProxy: PBXContainerItemProxy.create(xcodeProject, {
-                    containerPortal: xcodeProject.rootObject,
-                    proxyType: 1,
-                    remoteGlobalIDString: targetObject.uuid,
-                    remoteInfo: targetObject.props.name
-                })
-            });
-            watchAppTarget.props.dependencies.push(targetDependency);
-        }
-    }
+  }
 }
