@@ -337,21 +337,21 @@ async function addXcodeTarget(
   });
 
   // Add Copy Files build phase for extensions
-  if (target.type !== "watch") {
-    const copyFilesPhase = targetObject.createBuildPhase(
-      PBXCopyFilesBuildPhase,
-      {
-        dstPath: "",
-        dstSubfolderSpec: 6,
-        files: [
-          PBXBuildFile.create(xcodeProject, {
-            fileRef: productReference,
-          }),
-        ],
-        runOnlyForDeploymentPostprocessing: 0,
-      }
-    );
-  }
+//   if (target.type !== "watch") {
+//     const copyFilesPhase = targetObject.createBuildPhase(
+//       PBXCopyFilesBuildPhase,
+//       {
+//         dstPath: "",
+//         dstSubfolderSpec: 6,
+//         files: [
+//           PBXBuildFile.create(xcodeProject, {
+//             fileRef: productReference,
+//           }),
+//         ],
+//         runOnlyForDeploymentPostprocessing: 0,
+//       }
+//     );
+//   }
 
   // Add target to project
   xcodeProject.rootObject.props.targets.push(targetObject);
@@ -375,6 +375,22 @@ async function addXcodeTarget(
         }),
       });
       watchAppTarget.props.dependencies.push(targetDependency);
+
+      // Embed complication in watch app
+      const watchAppBuildPhase = watchAppTarget.createBuildPhase(
+        PBXCopyFilesBuildPhase,
+        {
+          dstPath: "",
+          dstSubfolderSpec: 6,
+          name: "Embed App Extensions",
+          files: [
+            PBXBuildFile.create(xcodeProject, {
+              fileRef: productReference,
+            }),
+          ],
+          runOnlyForDeploymentPostprocessing: 0,
+        }
+      );
     }
   }
 }
