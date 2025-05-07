@@ -101,13 +101,35 @@ async function updateXCodeProj(
   developmentTeamId: string,
   targets: IosExtensionTarget[]
 ) {
+  // Create shared group for common files
+  const sharedGroup = PBXGroup.create(xcodeProject, {
+    name: "Shared",
+    path: "Shared",
+    children: [],
+  });
+
+  // Add shared group to main group
+  const mainGroup = xcodeProject.rootObject.props.mainGroup;
+  mainGroup.props.children.push(sharedGroup);
+
+  // Create shared directory and copy common files
+  const sharedDirPath = path.join(platformProjectPath, "Shared");
+  fs.ensureDirSync(sharedDirPath);
+
+  // Map to store shared file references
+  const sharedFileReferences = new Map<string, PBXFileReference>();
+
+  // Process each target
   targets.forEach((target) =>
     addXcodeTarget(
       xcodeProject,
       projectRoot,
       platformProjectPath,
       developmentTeamId,
-      target
+      target,
+      sharedGroup,
+      sharedDirPath,
+      sharedFileReferences
     )
   );
 }
@@ -117,10 +139,12 @@ async function addXcodeTarget(
   projectRoot: string,
   platformProjectPath: string,
   developmentTeamId: string,
-  target: IosExtensionTarget
+  target: IosExtensionTarget,
+  sharedGroup: PBXGroup,
+  sharedDirPath: string,
+  sharedFileReferences: Map<string, PBXFileReference>
 ) {
   const targetSourceDirPath = path.join(projectRoot, target.sourceDir);
-
   const targetFilesDir = path.join(platformProjectPath, target.name);
   fs.copySync(targetSourceDirPath, targetFilesDir);
 
@@ -130,20 +154,34 @@ async function addXcodeTarget(
 
     target.commonSourceFiles?.forEach((file) => {
       const filePath = path.join(commonSourceDirPath, file);
-      const newFileName = file.replace(".swift", `_${target.name}.swift`);
-      commonSourceFiles.push(newFileName);
-      fs.copySync(filePath, `${targetFilesDir}/${newFileName}`);
+      commonSourceFiles.push(file);
+      
+      // Copy to shared directory if not already there
+      const sharedFilePath = path.join(sharedDirPath, file);
+      if (!fs.existsSync(sharedFilePath)) {
+        fs.copySync(filePath, sharedFilePath);
+      }
+
+      // Create file reference if not already exists
+      if (!sharedFileReferences.has(file)) {
+        const fileReference = PBXFileReference.create(xcodeProject, {
+          path: file,
+          sourceTree: "<group>" as const,
+        });
+        sharedGroup.props.children.push(fileReference);
+        sharedFileReferences.set(file, fileReference);
+      }
     });
   }
 
   const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
-  const targetResourceFiles = ["Assets.xcassets", "Info.plist"];
+  const targetResourceFiles = ["Assets.xcassets"];
   if (target.entitlementsFile) {
     targetResourceFiles.push(target.entitlementsFile);
   }
-  const targetFiles = [...targetResourceFiles, ...targetSourceFiles];
+  const targetFiles = [...targetResourceFiles, ...targetSourceFiles, "Info.plist"];
 
-  // Create the group
+  // Create the target group
   const pbxGroup = PBXGroup.create(xcodeProject, {
     name: target.name,
     path: target.name,
@@ -152,27 +190,28 @@ async function addXcodeTarget(
 
   // Create file references and build files
   const fileReferences: PBXFileReference[] = [];
-  // const buildFiles: PBXBuildFile[] = [];
 
   targetFiles.forEach((file) => {
-    // Create file reference
+    // Use existing shared file reference if it's a common file
+    if (commonSourceFiles.includes(file)) {
+      const sharedRef = sharedFileReferences.get(file);
+      if (sharedRef) {
+        fileReferences.push(sharedRef);
+        return;
+      }
+    }
+
+    // Create new file reference for target-specific files
     const fileReference = PBXFileReference.create(xcodeProject, {
       path: file,
       sourceTree: "<group>" as const,
     });
 
-    // Add file reference to group
     pbxGroup.props.children.push(fileReference);
     fileReferences.push(fileReference);
-
-    // Create build file
-    // const buildFile = PBXBuildFile.create(xcodeProject, {
-    //     fileRef: fileReference
-    // });
-    // buildFiles.push(buildFile);
   });
 
-  // Add group to main group
+  // Add target group to main group
   const mainGroup = xcodeProject.rootObject.props.mainGroup;
   mainGroup.props.children.push(pbxGroup);
 
