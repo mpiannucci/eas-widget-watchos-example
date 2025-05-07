@@ -61,7 +61,8 @@ const WIDGET_BUILD_CONFIGURATION_SETTINGS = {
   SKIP_INSTALL: "YES",
   SWIFT_EMIT_LOC_STRINGS: "YES",
   SWIFT_VERSION: "5.0",
-  TARGETED_DEVICE_FAMILY: '"1"',
+  TARGETED_DEVICE_FAMILY: "1,2",
+  SDKROOT: "iphoneos",
 };
 
 export const withXCodeExtensionTargets: ConfigPlugin<WithExtensionProps> = (
@@ -175,14 +176,18 @@ async function addXcodeTarget(
 
   const targetSourceFiles = [...target.sourceFiles, ...commonSourceFiles];
   const targetResourceFiles = ["Assets.xcassets"];
-  if (target.entitlementsFile) {
-    targetResourceFiles.push(target.entitlementsFile);
-  }
+//   if (target.entitlementsFile) {
+//     targetResourceFiles.push(target.entitlementsFile);
+//   }
   const targetFiles = [
     ...targetResourceFiles,
     ...targetSourceFiles,
     "Info.plist",
   ];
+
+  if (target.entitlementsFile) {
+    targetFiles.push(target.entitlementsFile);
+  }
 
   // Create the target group
   const pbxGroup = PBXGroup.create(xcodeProject, {
@@ -261,83 +266,40 @@ async function addXcodeTarget(
     productsGroup.createNewProductRefForTarget(target.name, productType);
   }
 
+  const buildSettings = {
+    ...((target.type === "watch" || target.type === "complication")
+      ? WATCH_BUILD_CONFIGURATION_SETTINGS
+      : WIDGET_BUILD_CONFIGURATION_SETTINGS),
+    PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
+    INFOPLIST_FILE: `${target.name}/Info.plist`,
+    DEVELOPMENT_TEAM: developmentTeamId,
+    PRODUCT_NAME: target.displayName ?? target.name,
+    INFOPLIST_KEY_CFBundleDisplayName: target.displayName ?? target.name,
+    ...(target.entitlementsFile
+      ? {
+          CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
+        }
+      : {}),
+    ...(target.type === "watch"
+      ? {
+          INFOPLIST_KEY_WKCompanionAppBundleIdentifier:
+            target.companionAppBundleId,
+          INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
+        }
+      : {}),
+  };
+
   // Create configuration list for the target
   const configurationList = XCConfigurationList.create(xcodeProject, {
     defaultConfigurationName: "Release",
     buildConfigurations: [
       XCBuildConfiguration.create(xcodeProject, {
         name: "Debug",
-        buildSettings: {
-          ...(target.type === "watch"
-            ? WATCH_BUILD_CONFIGURATION_SETTINGS
-            : WIDGET_BUILD_CONFIGURATION_SETTINGS),
-          PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
-          INFOPLIST_FILE: `${target.name}/Info.plist`,
-          DEVELOPMENT_TEAM: developmentTeamId,
-          PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
-          INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-          ...(target.entitlementsFile
-            ? {
-                CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
-              }
-            : {}),
-          ...(target.type === "watch"
-            ? {
-                INFOPLIST_KEY_WKCompanionAppBundleIdentifier:
-                  target.companionAppBundleId,
-                INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-              }
-            : {}),
-          SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
-          WATCHOS_DEPLOYMENT_TARGET: "9.4",
-          SWIFT_VERSION: "5.0",
-          SWIFT_COMPILATION_MODE: "singlefile",
-          SWIFT_OPTIMIZATION_LEVEL: "-Onone",
-          ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
-          ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
-          ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-          ENABLE_PREVIEWS: "YES",
-          SKIP_INSTALL: "YES",
-          SWIFT_EMIT_LOC_STRINGS: "YES",
-          TARGETED_DEVICE_FAMILY: "4",
-        } as any,
+        buildSettings: buildSettings as any,
       }),
       XCBuildConfiguration.create(xcodeProject, {
         name: "Release",
-        buildSettings: {
-          ...(target.type === "watch"
-            ? WATCH_BUILD_CONFIGURATION_SETTINGS
-            : WIDGET_BUILD_CONFIGURATION_SETTINGS),
-          PRODUCT_BUNDLE_IDENTIFIER: target.bundleId,
-          INFOPLIST_FILE: `${target.name}/Info.plist`,
-          DEVELOPMENT_TEAM: developmentTeamId,
-          PRODUCT_NAME: `"${target.displayName ?? target.name}"`,
-          INFOPLIST_KEY_CFBundleDisplayName: '"${PRODUCT_NAME}"',
-          ...(target.entitlementsFile
-            ? {
-                CODE_SIGN_ENTITLEMENTS: `${target.name}/${target.entitlementsFile}`,
-              }
-            : {}),
-          ...(target.type === "watch"
-            ? {
-                INFOPLIST_KEY_WKCompanionAppBundleIdentifier:
-                  target.companionAppBundleId,
-                INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp: "YES",
-              }
-            : {}),
-          SDKROOT: target.type === "watch" ? "watchos" : "iphoneos",
-          WATCHOS_DEPLOYMENT_TARGET: "9.4",
-          SWIFT_VERSION: "5.0",
-          SWIFT_COMPILATION_MODE: "wholemodule",
-          SWIFT_OPTIMIZATION_LEVEL: "-O",
-          ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES",
-          ASSETCATALOG_COMPILER_APPICON_NAME: "AppIcon",
-          ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: "AccentColor",
-          ENABLE_PREVIEWS: "YES",
-          SKIP_INSTALL: "YES",
-          SWIFT_EMIT_LOC_STRINGS: "YES",
-          TARGETED_DEVICE_FAMILY: "4",
-        } as any,
+        buildSettings: buildSettings as any,
       }),
     ],
   });
