@@ -356,6 +356,37 @@ async function addXcodeTarget(
   // Add target to project
   xcodeProject.rootObject.props.targets.push(targetObject);
 
+  if (target.type === "widget") {
+    const appTarget = xcodeProject.rootObject.props.targets[0] as PBXNativeTarget;
+    // Make the widget a dependency of the app target
+    const targetDependency = PBXTargetDependency.create(xcodeProject, {
+      target: targetObject,
+      targetProxy: PBXContainerItemProxy.create(xcodeProject, {
+        containerPortal: xcodeProject.rootObject,
+        proxyType: 1,
+        remoteGlobalIDString: targetObject.uuid,
+        remoteInfo: targetObject.props.name,
+      }),
+    });
+    appTarget.props.dependencies.push(targetDependency);
+
+    // Embed the widget in the app target
+    const copyFilesPhase = appTarget.createBuildPhase(
+      PBXCopyFilesBuildPhase,
+      {
+        dstPath: "",
+        name: "Embed App Extensions",
+        dstSubfolderSpec: 6,
+        files: [
+          PBXBuildFile.create(xcodeProject, {
+            fileRef: productReference,
+          }),
+        ],
+        runOnlyForDeploymentPostprocessing: 0,
+      }
+    );
+  }
+
   // Handle complication specific setup
   if (target.type === "complication") {
     // Get the watch app target (should be the previous target)
