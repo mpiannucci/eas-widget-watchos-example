@@ -12,8 +12,7 @@ import {
 } from "@bacons/xcode";
 import { PRODUCT_UTI_EXTENSIONS } from "@bacons/xcode/build/api/utils/constants";
 import type { PBXProductType } from "@bacons/xcode/json";
-import * as xcodeParse from "@bacons/xcode/json";
-import { ConfigPlugin, withXcodeProject } from "@expo/config-plugins";
+import { ConfigPlugin } from "@expo/config-plugins";
 import fs from "fs-extra";
 import path from "path";
 import { withXcodeProjectBeta } from "./withXcparse";
@@ -155,7 +154,7 @@ async function addXcodeTarget(
     target.commonSourceFiles?.forEach((file) => {
       const filePath = path.join(commonSourceDirPath, file);
       commonSourceFiles.push(file);
-      
+
       // Copy to shared directory if not already there
       const sharedFilePath = path.join(sharedDirPath, file);
       if (!fs.existsSync(sharedFilePath)) {
@@ -179,7 +178,11 @@ async function addXcodeTarget(
   if (target.entitlementsFile) {
     targetResourceFiles.push(target.entitlementsFile);
   }
-  const targetFiles = [...targetResourceFiles, ...targetSourceFiles, "Info.plist"];
+  const targetFiles = [
+    ...targetResourceFiles,
+    ...targetSourceFiles,
+    "Info.plist",
+  ];
 
   // Create the target group
   const pbxGroup = PBXGroup.create(xcodeProject, {
