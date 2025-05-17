@@ -52,7 +52,8 @@ const withXcodeProjectBetaBaseModInternal: ConfigPlugin = (config) => {
           if (introspect) {
             return;
           }
-          const contents = xcodeParse.build(modResults.toJSON());
+          const json = modResults.toJSON();
+          const contents = xcodeParse.build(json);
           if (contents.trim().length) {
             await fs.promises.writeFile(filePath, contents);
           }

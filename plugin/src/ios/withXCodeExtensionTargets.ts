@@ -9,6 +9,8 @@ import {
   XCBuildConfiguration,
   XCConfigurationList,
   XcodeProject,
+  XCRemoteSwiftPackageReference,
+  XCSwiftPackageProductDependency,
 } from "@bacons/xcode";
 import { PRODUCT_UTI_EXTENSIONS } from "@bacons/xcode/build/api/utils/constants";
 import type { PBXProductType } from "@bacons/xcode/json";
@@ -313,6 +315,52 @@ async function addXcodeTarget(
     buildConfigurationList: configurationList,
     buildPhases: [],
   });
+
+  // Add Swift Package dependencies if any
+  if (target.swiftPackages?.length) {
+    // Initialize package references array if it doesn't exist
+    if (!xcodeProject.rootObject.props.packageReferences) {
+      xcodeProject.rootObject.props.packageReferences = [];
+    }
+
+    // Initialize package product dependencies array if it doesn't exist
+    if (!targetObject.props.packageProductDependencies) {
+      targetObject.props.packageProductDependencies = [];
+    }
+
+    target.swiftPackages.forEach((pkg) => {
+      // Check if package reference already exists
+      const existingPackageRef = xcodeProject.rootObject.props.packageReferences?.find(
+        (ref) => 'repositoryURL' in ref.props && ref.props.repositoryURL === pkg.url
+      ) as XCRemoteSwiftPackageReference | undefined;
+
+      let packageRef: XCRemoteSwiftPackageReference;
+      if (existingPackageRef) {
+        packageRef = existingPackageRef;
+      } else {
+        // Create new package reference if it doesn't exist
+        packageRef = XCRemoteSwiftPackageReference.create(xcodeProject, {
+          repositoryURL: pkg.url,
+          requirement: pkg.requirement,
+        });
+        xcodeProject.rootObject.props.packageReferences?.push(packageRef);
+      }
+
+      // Check if product dependency already exists for this target
+      const existingProductDependency = targetObject.props.packageProductDependencies?.find(
+        (dep) => dep.props.productName === pkg.productName
+      );
+
+      if (!existingProductDependency) {
+        // Create new product dependency if it doesn't exist
+        const productDependency = XCSwiftPackageProductDependency.create(xcodeProject, {
+          package: packageRef,
+          productName: pkg.productName,
+        });
+        targetObject.props.packageProductDependencies?.push(productDependency);
+      }
+    });
+  }
 
   const sourcesBuildPhase = targetObject.getSourcesBuildPhase();
   targetSourceFiles.forEach((file) => {
