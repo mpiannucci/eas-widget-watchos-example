@@ -64,4 +64,4 @@ open ios/EASWidgetandWatchOSExample.xcworkspace
 ## TODO
 
 - [x] Get shared files working between targets, whether just copying or actually copying once and sharing the file between targets
-- [ ] Get Swift Package Manager working in extensions
+- [x] Get Swift Package Manager working in extensions
