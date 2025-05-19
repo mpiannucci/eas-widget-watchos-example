@@ -2,21 +2,34 @@ declare module "xcode"
 
 type IosExtensionTargetType = 'watch' | 'widget' | 'complication';
 
-type IosExtensionTarget = {
-  type: IosExtensionTargetType,
-  bundleId: string,
-  companionAppBundleId?: string,
-  name: string,
-  displayName?: string,
-  sourceDir: string,
-  sourceFiles: string[],
-  commonSourceDir?: string,
-  commonSourceFiles?: string[],
-  entitlementsFile?: string,
-  frameworks: string[],
-};
+interface SwiftPackageDependency {
+  url: string;
+  requirement: {
+    kind: 'upToNextMajorVersion' | 'exactVersion' | 'branch' | 'revision';
+    minimumVersion?: string;
+    version?: string;
+    branch?: string;
+    revision?: string;
+  };
+  productName: string;
+}
 
-type WithExtensionProps = {
-  devTeamId: string
-  targets: IosExtensionTarget[]
+interface IosExtensionTarget {
+  name: string;
+  type: IosExtensionTargetType;
+  bundleId: string;
+  displayName?: string;
+  sourceDir: string;
+  sourceFiles: string[];
+  commonSourceDir?: string;
+  commonSourceFiles?: string[];
+  entitlementsFile?: string;
+  companionAppBundleId?: string;
+  frameworks?: string[];
+  swiftPackages?: SwiftPackageDependency[];
+}
+
+interface WithExtensionProps {
+  targets: IosExtensionTarget[];
+  devTeamId: string;
 }

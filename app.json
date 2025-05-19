@@ -57,7 +57,17 @@
               "entitlementsFile": "widget.entitlements",
               "frameworks": ["WidgetKit.framework"],
               "commonSourceDir": "extensions/common",
-              "commonSourceFiles": ["shared.swift"]
+              "commonSourceFiles": ["shared.swift"], 
+              "swiftPackages": [
+                {
+                  "url": "https://github.com/mpiannucci/FeatureShapes.git",
+                  "requirement": {
+                    "kind": "branch",
+                    "branch": "main"
+                  },
+                  "productName": "FeatureShapes"
+                }
+              ]
             },
             {
               "type": "watch",
@@ -70,7 +80,17 @@
               "entitlementsFile": "watch.entitlements",
               "frameworks": ["SwiftUI.framework"],
               "commonSourceDir": "extensions/common",
-              "commonSourceFiles": ["shared.swift"]
+              "commonSourceFiles": ["shared.swift"],
+              "swiftPackages": [
+                {
+                  "url": "https://github.com/mpiannucci/FeatureShapes.git",
+                  "requirement": {
+                    "kind": "branch",
+                    "branch": "main"
+                  },
+                  "productName": "FeatureShapes"
+                }
+              ]
             },
             {
               "type": "complication", 
